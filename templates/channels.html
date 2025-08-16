@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+     <link rel="stylesheet" href="/static/style.css">
+    <meta charset="UTF-8">
+    <title>Групы</title>
+</head>
+<body>
+    <h1>Все группы</h1>
+    <a href="/channels/create">Создать группу (только админы)</a>
+    <ul>
+        {% for channel in channels %}
+        <li>
+            <a href="/channel/{{ channel.id }}">{{ channel.name }}</a>
+            - {{ channel.description }}
+        </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
