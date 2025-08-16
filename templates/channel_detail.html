@@ -1,0 +1,35 @@
+print(channel)
+print(message)
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ channel.name }}</title>
+</head>
+<body>
+    <h1>{{ channel.name }}</h1>
+    <p>{{ channel.description }}</p>
+    <a href="/channels">Назад к групп</a>
+
+    <h2>Сообщения</h2>
+    <ul>
+        {% for msg in messages %}
+        <li>
+            <strong>{{ msg.username }}:</strong> {{ msg.content }}
+            {% if msg.image %}
+                <br><img src="{{ msg.image }}" width="150">
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+
+    <h3>Отправить сообщение</h3>
+    <form method="post" enctype="multipart/form-data" action="/channel/{{ channel.id }}/send">
+        <textarea name="content" required placeholder="Ваше сообщение"></textarea><br>
+        <label>Изображение (опционально):</label>
+        <input type="file" name="image"><br><br>
+        <button type="submit">Отправить</button>
+    </form>
+</body>
+</html>
