@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+    <link rel="stylesheet" href="/static/style.css">
+<section class="card">
+  <h2>Регистрация</h2>
+  <form action="/register" method="post" enctype="multipart/form-data" class="form-grid">
+    <input name="email" type="email" placeholder="Email" required>
+    <input name="username" placeholder="@username (англ., 3–20)" required>
+    <input type="password" name="password" placeholder="password" required>
+    <input name="first_name" placeholder="Имя" required>
+    <input name="last_name" placeholder="Фамилия" required>
+    <label>Аватар: <input type="file" name="avatar"></label>
+    <label>
+<input type="checkbox" checked>Я согласен c  <a href="user_info.html">условиями использования платформы и обработки персональных данных,
+а так же с использованием cookie-файлов</a>, без них никак
+</label>
+    <br><button>Создать аккаунт</button>
+    </form>
+  {% if request.query_params.get('e')=='bad_username' %}<p class="error">Ой! Неверный формат @username.</p>{% endif %}
+  {% if request.query_params.get('e')=='exists' %}<p class="error">Упс! Email или username уже заняты.</p>{% endif %}
+</section>
+{% endblock %}
