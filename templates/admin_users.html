@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin - Users</title>
+</head>
+<body>
+<h1>Админ-панель: пользователи</h1>
+<table border="1">
+    <tr>
+        <th>ID</th>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Verified</th>
+        <th>Action</th>
+        <th>Admin</th>
+        <th>Action</th>
+    </tr>
+    {% for u in users %}
+    <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.username }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ "✅" if u.is_verified else "❌" }}</td>
+        <td>            {% if not u.is_verified %}
+            <form method="post" action="/admin/users/{{ u.id }}/verify">
+                <button type="submit">Verify</button>
+            </form>
+                            {% endif %}
+                                    <td>{{ "✅" if u.is_admin else "❌" }}</td>
+         <td>  {% if not u.is_verified %}
+            <form method="post" action="/admin/make_admin/{{ u.id }}">
+                <button type="submit">Admin</button>
+                 </form>
+                            {% endif %}
+    </tr>
+        </td>
+        </tr>
+    {% endfor %}
+</table>
+</body>
+</html>
