@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head> <link rel="stylesheet" href="/static/style.css">
+    <meta charset="UTF-8">
+    <title>{{ channel.name }}</title>
+</head>
+<body>
+<h1>{{ channel.name }}</h1>
+<p>{{ channel.description }}</p>
+
+<div>
+        {% for msg in messages %}
+    <div>
+        <img src="/{{ msg.avatar or 'static/avatars/default.png' }}" width="30" height="30">
+        <strong>{{ msg.username }}:</strong>
+                {{ msg.content }}
+                {% if msg.image %}
+        <br><img src="/{{ msg.image }}" width="200">
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+        <form action="/channel/{{ channel.id }}/send" method="post" enctype="multipart/form-data">
+    <input type="text" name="content" placeholder="Сообщение">
+    <input type="file" name="image">
+            <button type="submit">Отправить</button>
+        </form>
+
+<a href="/channels">Назад к группам</a>
+</body>
+</html>
