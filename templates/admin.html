@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Админ-панель</h2>
+  <h3>Пользователи</h3>
+  {% for u in users %}
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <b>{{ u['username'] }}</b> — {{ u['email'] }}
+        {% if u['verified'] %}✅{% else %}❌{% endif %}
+        {% if u['is_admin'] %}✅{% else %}❌{% endif %}
+      </div>
+      <div class="row" style="gap:6px">
+        {% if not u['verified'] %}
+        <form action="/admin/verify" method="post"><input type="hidden" name="username" value="{{ u['username'] }}"><button>Выдать галочку</button></form>
+        {% endif %}
+        {% if not u['is_admin'] %}
+        <form action="/admin/make_admin" method="post"><input type="hidden" name="username" value="{{ u['username'] }}"><button>Сделать админом</button></form>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</section>
+
+<section class="card">
+  <h3>Посты</h3>
+  {% for p in posts %}
+    <div class="row" style="justify-content:space-between">
+      <div>#{{ p['id'] }} от {{ p['username'] }} — {{ p['content']|truncate(60, True) }}</div>
+      <form action="/admin/delete_post" method="post">
+        <input type="hidden" name="post_id" value="{{ p['id'] }}">
+        <button>Удалить</button>
+      </form>
+    </div>
+  {% else %}<p>Нет постов.</p>{% endfor %}
+</section>
+
+<section class="card">
+  <h3>Каналы</h3>
+  {% for ch in channels %}
+    <div>@{{ ch['slug'] }} — {{ ch['title'] }} ({{ ch['owner_username'] }})</div>
+  {% else %}<p>Нет каналов.</p>{% endfor %}
+</section>
+{% endblock %}
