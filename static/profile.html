@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"><title>WhoMe • Профиль</title>
+<link rel="icon" href="/placeholder.png">
+<style>
+:root{--blue:#4a76a8;--bg:#eef1f5;--card:#fff;--muted:#7b8ca4}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,Helvetica,sans-serif}
+.top{background:var(--blue);color:#fff;padding:12px 16px;display:flex;gap:16px;align-items:center}
+.top a{color:#fff;text-decoration:none;margin-right:10px}
+.wrap{max-width:680px;margin:0 auto;padding:16px}
+.card{background:#fff;border-radius:12px;padding:16px;margin:12px 0}
+.row{display:flex;gap:12px;align-items:center}
+.ava{width:96px;height:96px;border-radius:50%;object-fit:cover;background:#ddd}
+input,button{padding:10px;border:1px solid #cfd6e4;border-radius:8px}
+button{background:#4a76a8;color:#fff;border:none;cursor:pointer}
+.muted{color:#7b8ca4}
+</style>
+</head>
+<body>
+<div class="top">
+  <a href="/">Лента</a>
+  <a href="/chats">Чаты</a>
+  <a href="/profile">Профиль</a>
+  <div style="margin-left:auto" id="who"></div>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="row">
+      <img id="ava" class="ava" src="/placeholder.png">
+      <div>
+        <div style="font-size:20px;font-weight:bold" id="full"></div>
+        <div class="muted" id="uname"></div>
+        <div class="muted" id="email"></div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <input type="file" id="avaFile" accept=".png,.jpg,.jpeg,.webp">
+      <button onclick="upload()">Загрузить аватар</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Редактировать профиль</h3>
+    <div class="row">
+      <input id="first" placeholder="Имя">
+      <input id="last" placeholder="Фамилия">
+      <button onclick="save()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem("token")||""; who.textContent = token || "гость";
+async function loadMe(){
+  const r = await fetch(`/user/profile?token=${encodeURIComponent(token)}`); const me = await r.json();
+  ava.src = me.avatar || "/placeholder.png";
+  full.textContent = `${me.first_name} ${me.last_name}`;
+  uname.textContent = me.username;
+  email.textContent = me.email;
+  first.value = me.first_name || "";
+  last.value = me.last_name || "";
+}
+async function upload(){
+  const f = avaFile.files[0]; if(!f) return;
+  const fd = new FormData(); fd.append("token", token); fd.append("avatar", f);
+  const r = await fetch("/user/avatar",{method:"POST",body:fd}); const j = await r.json();
+  ava.src = j.avatar;
+}
+async function save(){
+  const fd = new FormData(); fd.append("token", token); fd.append("first_name", first.value); fd.append("last_name", last.value);
+  await fetch("/user/update",{method:"POST",body:fd}); loadMe();
+}
+loadMe();
+</script>
+</body>
+</html>
