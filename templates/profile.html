@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+<title>Профиль {{ user.username }}</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: var(--bg-color, #fff);
+    color: var(--text-color, #000);
+    transition: background-color 0.3s, color 0.3s;
+        --bg-color: #121212;
+    --text-color: #f1f1f1;
+    --card-bg: #1e1e1e;
+    --input-bg: #2c2c2c;
+    --input-color: #f1f1f1;
+    --button-bg: #333;
+    --button-color: #f1f1f1;
+  }
+
+  .dark-theme {
+    --bg-color: #121212;
+    --text-color: #f1f1f1;
+    --card-bg: #1e1e1e;
+    --input-bg: #2c2c2c;
+    --input-color: #f1f1f1;
+    --button-bg: #333;
+    --button-color: #f1f1f1;
+  }
+
+  .profile-card {
+    background-color: var(--card-bg, #f9f9f9);
+    padding: 20px;
+    border-radius: 10px;
+    width: 400px;
+    margin: auto;
+    border: 3px solid transparent;
+  }
+
+  .profile-card.premium {
+    border-color: rgb(211, 214, 0);
+  }
+
+  .avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+  }
+
+  h2 {
+    margin-top: 10px;
+  }
+
+  .stats {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .bio {
+    margin: 15px 0;
+    font-style: italic;
+  }
+
+  button {
+    padding: 8px 12px;
+    margin-right: 10px;
+    background-color: var(--button-bg, #ddd);
+    color: var(--button-color, #000);
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  button:hover {
+    opacity: 0.8;
+  }
+
+  input[type="text"], textarea, input[type="file"] {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0 10px 0;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    background-color: var(--input-bg, #fff);
+    color: var(--input-color, #000);
+  }
+
+  .achievements span {
+    display: inline-block;
+    background-color: #ffdf00;
+    color: #000;
+    padding: 3px 8px;
+    margin: 2px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .theme-toggle {
+    margin: 20px auto;
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<div class="profile-card {% if user.is_premium %}premium{% endif %}">
+                <img src="/{{ user.avatar }}" alt="Avatar" width="50">
+  <h2>{{ user.first_name }} {{ user.last_name }} {% if user.is_verified %}✔️{% endif %} {% if user.is_premium %}⭐{% endif %}</h2>
+  
+  <div class="stats">
+    <div class="stat"><strong>{{ user.posts_count }}</strong><br>Посты</div>
+    <div class="stat"><strong>{{ user.followers_count }}</strong><br>Подписчики</div>
+    <div class="stat"><strong>{{ user.following_count }}</strong><br>Подписки</div>
+    </div>
+
+  <div class="bio">{{ user.bio }}</div>
+
+  <button>Подписаться</button>
+  <p>{% if user.is_admin %} Пользователь имеет Премиум подписку!</p>{% endif %}
+  <a href="/chat/{{user.username}}">Написать сообщение</a>
+
+
+  <div class="achievements">
+    {% for badge in user.badges %}
+      <span>{{ badge }}</span>
+    {% endfor %}
+  </div>
+
+  <div class="activity">
+    <p>Дата регистрации: {{ user.registered_at }}</p>
+  </div>
+
+
+
+
+<script>
+  function toggleTheme() {
+            document.body.classList.toggle("dark-theme");
+    }
+</script>
+
+</body>
+</html>
