@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+    <link rel="stylesheet" href="/static/style.css">
+
+<section class="card">
+    <h2>Привет, заходи скорее!</h2>
+    {% if not twofa_required %}
+    <form action="/login" method="post" class="form-grid">
+        <input name="username" placeholder="@username" required>
+        <input name="email" type="email" placeholder="Email" required>
+        <input type="password" name="password" placeholder="password" required>
+        <button>Войти</button>
+    </form>
+    {% else %}
+    <form action="/login" method="post" class="form-grid">
+        <input type="hidden" name="username" value="{{ username }}">
+        <input type="hidden" name="email" value="{{ email }}">
+        <button>Подтвердить</button>
+    </form>
+    {% endif %}
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+</section>
+{% endblock %}
