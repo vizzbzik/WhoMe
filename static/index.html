@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"><title>WhoMe • Лента</title>
+<link rel="icon" href="">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+:root{--blue:#4a76a8;--bg:#eef1f5;--card:#fff;--muted:#7b8ca4}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,Helvetica,sans-serif}
+.top{background:var(--blue);color:#fff;padding:12px 16px;display:flex;gap:16px;align-items:center}
+.top a{color:#fff;text-decoration:none;margin-right:10px}
+.wrap{max-width:980px;margin:0 auto;padding:16px}
+.card{background:var(--card);border-radius:12px;padding:12px;margin:12px 0}
+.row{display:flex;gap:10px;align-items:center}
+input,button,textarea{padding:10px;border:1px solid #cfd6e4;border-radius:8px}
+button{background:var(--blue);color:#fff;border:none;cursor:pointer}
+.ava{width:40px;height:40px;border-radius:50%;object-fit:cover;background:#ddd}
+.muted{color:var(--muted);font-size:12px}
+.postimg{width:100%;border-radius:8px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="top">
+  <a href="/">Лента</a>
+  <a href="/chats">Чаты</a>
+  <a href="/profile">Профиль</a>
+  <div style="margin-left:auto" id="who"></div>
+</div>
+
+<div class="wrap">
+  <div class="card" id="authBox">
+    <h3>Вход / Регистрация</h3>
+    <div class="row">
+      <input id="login_email" placeholder="Email">
+      <input id="login_username" placeholder="@username (опц.)">
+      <input id="login_pass" type="password" placeholder="Пароль">
+      <button onclick="login()">Войти</button>
+    </div>
+    <details style="margin-top:8px">
+      <summary>Регистрация</summary>
+      <div class="row" style="flex-wrap:wrap">
+        <input id="reg_email" placeholder="Email">
+        <input id="reg_username" placeholder="@username">
+        <input id="reg_pass" type="password" placeholder="Пароль">
+        <input id="reg_first" placeholder="Имя">
+        <input id="reg_last"  placeholder="Фамилия">
+        <button onclick="register()">Создать аккаунт</button>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h3>Новая запись</h3>
+    <textarea id="post_text" placeholder="Что у вас нового?" style="width:100%;min-height:70px"></textarea>
+    <input id="post_img" placeholder="Ссылка на картинку (необязательно)" style="width:100%;margin-top:6px">
+    <div class="row" style="margin-top:8px"><button onclick="createPost()">Опубликовать</button></div>
+  </div>
+
+  <div id="feed"></div>
+</div>
+
+<script>
+let token = localStorage.getItem("token")||"";
+let user_id = localStorage.getItem("user_id")||"";
+function uiAuth(){
+  who.textContent = token ? token : "Вы Гость";
+  document.getElementById("authBox").style.display = token ? "none":"block";
+}
+async function register(){
+  const fd = new FormData();
+  fd.append("email", reg_email.value.trim());
+  fd.append("username", reg_username.value.trim());
+  fd.append("password", reg_pass.value);
+  fd.append("first_name", reg_first.value.trim());
+  fd.append("last_name", reg_last.value.trim());
+  const r = await fetch("/auth/register",{method:"POST",body:fd});
+  const j = await r.json();
+  if(j.token){ token=j.token; user_id=j.user_id; localStorage.setItem("token",token); localStorage.setItem("user_id",user_id); uiAuth(); }
+  else alert(j.detail||"Ошибка");
+}
+async function login(){
+  const fd = new FormData();
+  if (login_username.value.trim()) fd.append("username", login_username.value.trim());
+  else fd.append("email", login_email.value.trim());
+  fd.append("password", login_pass.value);
+  const r = await fetch("/auth/login",{method:"POST",body:fd});
+  const j = await r.json();
+  if(j.token){ token=j.token; user_id=j.user_id; localStorage.setItem("token",token); localStorage.setItem("user_id",user_id); uiAuth(); }
+  else alert(j.detail||"Ошибка");
+}
+async function createPost(){
+  if(!token) return alert("Войдите");
+  const fd = new FormData();
+  fd.append("token", token);
+  fd.append("text", post_text.value);
+  fd.append("image_url", post_img.value);
+  await fetch("/posts/create",{method:"POST",body:fd});
+  post_text.value=""; post_img.value=""; loadFeed();
+}
+function card(p){
+  return `<div class="card">
+    <div class="row">
+      <img class="ava" src="${p.avatar||'/placeholder.png'}">
+      <div><b>${p.first_name} ${p.last_name}</b> <span class="muted">${p.username}</span><div class="muted">${new Date(p.created_at).toLocaleString()}</div></div>
+    </div>
+    ${p.text?`<div style="margin-top:8px">${p.text}</div>`:""}
+    ${p.image_url?`<img class="postimg" src="${p.image_url}">`:""}
+    <div class="row" style="margin-top:6px"><button onclick="like(${p.id})">❤ ${p.likes||0}</button></div>
+  </div>`;
+}
+async function like(id){
+  const fd=new FormData(); fd.append("post_id", id);
+  await fetch("/posts/like",{method:"POST",body:fd}); loadFeed();
+}
+async function loadFeed(){
+  const r = await fetch("/posts"); const posts = await r.json();
+  feed.innerHTML = posts.map(card).join("");
+}
+uiAuth(); loadFeed();
+</script>
+</body>
+</html>
