@@ -1,0 +1,149 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ APP }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>{{ APP }}</h1>
+        {% if me %}
+            <p>Привет, {{ me.first_name }} {{ me.last_name }}{% if me.is_admin %} <a href="/admin/users">Админ-панель</a>{% endif %}
+              <header class="topbar">
+  <nav>
+    <a href="/">Лента</a>
+    <a href="/channels">Группы</a>
+    <a href="/chats">Чаты</a>
+    {% if me %}
+      <a href="/profile/{{ me.username }}">Профиль</a>
+    {% else %}
+      <a href="/register">Регистрация</a>
+      <a href="/login">Вход</a>
+    {% endif %}
+                </nav>
+</header>
+              <a href="/logout">Выйти</a></p>
+              <button id="theme-toggle">🌙 Темная тема</button>
+        {% else %}
+            <p><a href="/login">Войти</a> | <a href="/register">Регистрация</a></p>
+        {% endif %}
+    </header>
+    <script>
+const toggleButton = document.getElementById("theme-toggle");
+const body = document.body;
+
+// Проверяем, есть ли сохранённая тема в localStorage
+if (localStorage.getItem("theme") === "dark") {
+    body.classList.add("dark-theme");
+    toggleButton.textContent = "☀️ Светлая тема";
+}
+
+toggleButton.addEventListener("click", () => {
+    body.classList.toggle("dark-theme");
+    if (body.classList.contains("dark-theme")) {
+        toggleButton.textContent = "☀️ Светлая тема";
+        localStorage.setItem("theme", "dark");
+    } else {
+        toggleButton.textContent = "🌙 Темная тема";
+        localStorage.setItem("theme", "light");
+    }
+});
+</script>
+
+
+    {% if me %}
+    <section>
+        <h2>Создать пост</h2>
+    <form action="/post" method="post" enctype="multipart/form-data">
+            <textarea name="content" placeholder="Иду по тропинке в голове ля-ля-ля" required></textarea><br>
+        <input type="file" name="image"><br>
+        <button type="submit">Опубликовать</button>
+                        </form>
+                </section>
+    {% endif %}
+
+    <hr>
+
+    <section>
+    <h2>Посты</h2>
+    {% for post in posts %}
+        <div id="post-{{ post.id }}" style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
+            <p><strong>{{ post.username }}</strong> ({{ post.first_name }} {{ post.last_name }})
+            {% if post.is_verified %}✔️{% endif %}</p>
+
+            {% if post.avatar %}
+                <img src="/{{ post.avatar }}" alt="Avatar" width="50">
+            {% endif %}
+
+            <p>{{ post.content }}</p>
+            {% if post.image %}
+                <img src="/{{ post.image }}" alt="Post image" style="max-width:300px;">
+            {% endif %}
+            
+           <!-- Лайки -->
+<button class="like-btn {% if post.is_liked %}liked{% endif %}" data-post-id="{{ post.id }}">❤️</button>
+<span class="like-count">{{ post.like_count or 0 }}</span>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const likeButtons = document.querySelectorAll(".like-btn");
+
+    likeButtons.forEach(button => {
+        button.addEventListener("click", async () => {
+            const postId = button.dataset.postId;
+
+            const response = await fetch(`/like/${postId}`, {
+                method: "POST"
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const likeCountSpan = button.nextElementSibling;
+
+                likeCountSpan.textContent = data.count;
+
+                if (data.status === "liked") {
+                    button.classList.add("liked");
+                } else {
+                    button.classList.remove("liked");
+                }
+            } else {
+                console.error("Ошибка при лайке поста");
+            }
+        });
+    });
+});
+</script>
+
+            <!-- Комментарии -->
+            <div class="comments">
+                <h4>Комментарии:</h4>
+                {% for comment in post.comments %}
+                    <p><b>{{ comment.username }}</b>: {{ comment.content }}</p>
+                {% else %}
+                    <p>Комментариев пока нет</p>
+                {% endfor %}
+
+                {% if me %}
+                <form action="/post/{{ post.id }}/comment" method="post">
+                    <textarea name="content" placeholder="Напишите комментарий..." required></textarea><br>
+                    <button type="submit">Отправить</button>
+                </form>
+                {% endif %}
+            </div>
+
+            {% if me and (me.id == post.user_id or me.is_admin) %}
+                <br><form action="/post/{{ post.id }}/delete" method="post" style="display:inline;">
+                    <button type="submit" onclick="return confirm('Удалить пост?')">Удалить</button>
+                </form>
+            {% endif %}
+        </div>
+    {% else %}
+        <p>Постов пока нет.</p>
+    {% endfor %}
+</section>
+</script>
+</body>
+</html>
