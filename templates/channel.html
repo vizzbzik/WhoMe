@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+     <link rel="stylesheet" href="/static/style.css">
+    <meta charset="UTF-8">
+    <title>{{ channel.name }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .post { border: 1px solid #ccc; padding: 10px; margin-bottom: 15px; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; vertical-align: middle; }
+    </style>
+</head>
+<body>
+    <a href="/channels">⬅ Все каналы</a>
+    <h1>{{ channel.name }}</h1>
+    {% if channel.description %}
+        <p>{{ channel.description }}</p>
+    {% endif %}
+
+    {% for post in posts %}
+    <div class="post">
+        {% if post.avatar %}
+            <img src="/{{ post.avatar }}" class="avatar">
+        {% endif %}
+        <strong>{{ post.username }}</strong>
+        <p>({{ post.first_name }} {{ post.last_name }}) {% if post.is_verified %}
+                    ✔️
+                    {% endif%}{{ post.content }}</p>
+        {% if post.image %}
+            <img src="/{{ post.image }}" style="max-width:200px;">
+        {% endif %}
+    </div>
+    {% endfor %}
+</body>
+</html>
