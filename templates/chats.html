@@ -1,0 +1,33 @@
+
+{% extends "base.html" %}
+{% block content %}
+  <link rel="stylesheet" href="/static/style.css">
+    </style>
+<section class="card">
+  <h2>Мои чаты</h2>
+  <form action="/chats/new" method="post" class="row">
+    <input name="peer_username" placeholder="@username собеседника" required>
+    <button>Начать чат</button>
+  </form>
+  <div class="dialogs">
+    {% for d in dialogs %}
+      <a class="dialog" href="/chat/{{ d['peer_username'] }}">
+        <img class="avatar" src="/{{ d['peer_avatar'] or 'static/avatars/default.png' }}">
+        <div>
+          <div class="strong">{{ d['peer_name'] }}</div>
+          <div class="uname-dim">{{ d['peer_username'] }}</div>
+        </div>
+      </a>
+    {% else %}
+     <a class="dialog" href="/chat/@whome_support">
+        <img class="avatar" src="/static/avatars/@whome_support.png">
+        <div>
+          <div class="strong">WhoMe Support</div>
+          <div class="uname-dim">@whome_support</div>
+        </div>
+      </a>
+      <p>Пока нет диалогов.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
