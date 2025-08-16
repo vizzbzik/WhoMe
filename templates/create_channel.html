@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+     <link rel="stylesheet" href="/static/style.css">
+    <meta charset="UTF-8">
+    <title>Создать канал</title>
+</head>
+<body>
+    <h1>Создать новый канал</h1>
+    <form method="post" action="/channels/create">
+        <label>Название:</label>
+        <input type="text" name="name" required><br><br>
+        
+        <label>Описание:</label>
+        <input type="text" name="description"><br><br>
+        
+        <button type="submit">Создать</button>
+    </form>
+    <a href="/channels">Назад к списку каналов</a>
+</body>
+</html>
