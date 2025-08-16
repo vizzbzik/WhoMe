@@ -1,0 +1,212 @@
+/* Базовые стили для светлой темы */
+body {
+    background-color: #f5f5f5;
+    color: #222;
+    font-family: Arial, sans-serif;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+header, section {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    transition: background-color 0.3s;
+}
+
+a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.like-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 20px;
+    color: gray;
+    transition: color 0.2s ease;
+}
+
+.like-btn.liked {
+        color: red;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+button {
+    background-color: #eee;
+    color: #222;
+    border: 1px solid #ccc;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+button:hover {
+    background-color: #ddd;
+}
+
+img.avatar {
+    border-radius: 50%;
+    border: 2px solid #444;
+    transition: border 0.3s;
+}
+
+/* Тёмная тема */
+body.dark-theme {
+    background-color: #121212;
+    color: #e0e0e0;
+}
+
+body.dark-theme header,
+body.dark-theme section {
+    background-color: #1e1e1e;
+}
+
+body.dark-theme a {
+    color: #bb86fc;
+}
+
+body.dark-theme button {
+    background-color: #333;
+    color: #e0e0e0;
+    border: 1px solid #555;
+}
+
+body.dark-theme button:hover {
+    background-color: #555;
+}
+
+/* Премиум-рамка */
+img.premium {
+    border: 2px solid #bb86fc; /* фиолетовая рамка */
+}
+/* Для всех тем */
+input, textarea, select, button {
+    font-family: inherit;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px 8px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+/* Светлая тема */
+:root {
+    --input-bg: #fff;
+    --input-text: #111;
+    --input-border: #ccc;
+    --button-bg: #eee;
+    --button-text: #111;
+}
+
+/* Темная тема */
+body.dark {
+    --input-bg: #2c2c2c;
+    --input-text: #eee;
+    --input-border: #555;
+    --button-bg: #3a3a3a;
+    --button-text: #fff;
+}
+
+/* Применяем переменные */
+input, textarea, select {
+    background-color: var(--input-bg);
+    color: var(--input-text);
+    border-color: var(--input-border);
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: #9b59b6; /* красиво подсвечивается в обоих режимах */
+}
+
+button {
+    background-color: var(--button-bg);
+    color: var(--button-text);
+    border: 1px solid var(--input-border);
+}
+
+button:hover {
+    opacity: 0.9;
+}
+/* Базовые стили для формы */
+input, textarea, select, button {
+    font-family: inherit;
+    font-size: 14px;
+    border-radius: 4px;
+    padding: 6px 10px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+/* CSS-переменные для тем */
+:root {
+    --bg-color: #fff;
+    --text-color: #111;
+    --border-color: #ccc;
+    --button-bg: #eee;
+    --button-text: #111;
+}
+
+body.dark {
+    --bg-color: #2c2c2c;
+    --text-color: #eee;
+    --border-color: #555;
+    --button-bg: #3a3a3a;
+    --button-text: #fff;
+}
+
+/* Применяем к input, textarea, select */
+input, textarea, select {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: #9b59b6;
+}
+
+/* Кнопки */
+button {
+    background-color: var(--button-bg);
+    color: var(--button-text);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+/* Стили для кастомного input type="file" */
+.file-input-wrapper {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 6px 10px;
+}
+
+.file-input-wrapper input[type="file"] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+}
+
+.file-input-wrapper span {
+    pointer-events: none;
+}
