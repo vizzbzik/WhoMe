@@ -1,362 +1,170 @@
-import os, time, sqlite3, shutil, re
+import os
+import shutil
 from fastapi import FastAPI, Request, Form, UploadFile, File, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
+from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+from db import SessionLocal, init_db, User, Post, Comment, Like
+from passlib.hash import bcrypt
+from datetime import datetime
+
 
 APP_NAME = "WhoMe"
+app = FastAPI()
 
-# ── FS ─────────────────────────────────────────────────────────────────────────
-os.makedirs("static/avatars", exist_ok=True)
-os.makedirs("static/posts", exist_ok=True)
-
-# ── DB ─────────────────────────────────────────────────────────────────────────
-def db():
-    conn = sqlite3.connect("whome.db")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-with db() as c:
-    c.executescript("""
-    CREATE TABLE IF NOT EXISTS users(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE,
-        username TEXT UNIQUE,
-        first_name TEXT,
-        last_name TEXT,
-        avatar TEXT,
-        password TEXT,
-        is_admin INTEGER DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS posts(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        content TEXT,
-        image TEXT,
-        created_at INTEGER
-    );
-    CREATE TABLE IF NOT EXISTS chats(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user1_id INTEGER,
-        user2_id INTEGER,
-        UNIQUE(user1_id,user2_id)
-    );
-    CREATE TABLE IF NOT EXISTS messages(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        chat_id INTEGER,
-        sender_id INTEGER,
-        kind TEXT,
-        body TEXT,
-        created_at INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS channels(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE,
-        description TEXT,
-        owner_id INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS channel_messages(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        channel_id INTEGER,
-        sender_id INTEGER,
-        content TEXT,
-        image TEXT,
-        created_at INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS premium_users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER UNIQUE,
-        given_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Комментарии: фикс TIMESTAMP, есть content, верные внешние ключи
-    CREATE TABLE IF NOT EXISTS comments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        post_id INTEGER NOT NULL,
-        user_id INTEGER NOT NULL,
-        content TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-    CREATE TABLE IF NOT EXISTS likes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    post_id INTEGER NOT NULL,
-    UNIQUE(user_id, post_id)
-);
-    """)
-
-# ── APP ────────────────────────────────────────────────────────────────────────
-app = FastAPI(title=APP_NAME)
+# подключение статики
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# инициализация базы
+init_db()
 
-# ── helpers ───────────────────────────────────────────────────────────────────
-def cur_user(request: Request):
-    u = request.cookies.get("whome_user")
-    if not u:
-        return None
-    with db() as c:
-        row = c.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
-    return row  # row['is_admin'] = 1 если админ
 
-# dependency для Depends(...)
-def get_current_user(request: Request):
-    return cur_user(request)
-
-def valid_username(u:str)->bool:
-    return bool(re.fullmatch(r"@[a-zA-Z0-9_]{3,20}", u or ""))
-
-# ── password helpers ───────────────────────────────────────────────────
-from passlib.context import CryptContext
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
-def verify_password(password: str, hashed: str) -> bool:
+# зависимость для получения сессии
+def get_db():
+    db = SessionLocal()
     try:
-        return pwd_context.verify(password, hashed)
-    except Exception:
-        return False
+        yield db
+    finally:
+        db.close()
 
-# === Список каналов ===
-@app.get("/channels", response_class=HTMLResponse)
-def list_channels(request: Request):
-    me = cur_user(request)
-    with db() as c:
-        channels = c.execute("SELECT * FROM channels ORDER BY name ASC").fetchall()
-    return templates.TemplateResponse("channels.html", {
-        "request": request, "channels": channels, "me": me
-    })
 
-# === Форма создания канала (только админ) ===
-@app.get("/channels/create", response_class=HTMLResponse)
-def create_channel_form(request: Request):
-    me = cur_user(request)
-    if not me or not me["is_admin"]:
-        return PlainTextResponse("Permission denied", status_code=403)
-    return templates.TemplateResponse("create_channel.html", {"request": request, "me": me})
+# текущий юзер из куки
+def cur_user(request: Request, db: Session):
+    username = request.cookies.get("whome_user")
+    if not username:
+        return None
+    return db.query(User).filter(User.username == username).first()
 
-# === Создание канала ===
-@app.post("/channels/create")
-def create_channel(request: Request, name: str = Form(...), description: str = Form("")):
-    me = cur_user(request)
-    if not me or not me["is_admin"]:
-        return PlainTextResponse("Permission denied", status_code=403)
-    with db() as c:
-        c.execute("INSERT INTO channels(name, description, owner_id) VALUES(?,?,?)", (name, description, me["id"]))
-        c.commit()
-    return RedirectResponse("/channels", status_code=303)
 
-# === Просмотр канала ===
-@app.get("/channel/{channel_id}", response_class=HTMLResponse)
-def view_channel(request: Request, channel_id: int):
-    me = cur_user(request)
-    with db() as c:
-        channel = c.execute("SELECT * FROM channels WHERE id=?", (channel_id,)).fetchone()
-        if not channel:
-            return PlainTextResponse("Channel not found", status_code=404)
-        messages = c.execute("""
-            SELECT cm.*, u.username, u.avatar
-            FROM channel_messages cm
-            JOIN users u ON cm.sender_id = u.id
-            WHERE cm.channel_id=?
-            ORDER BY cm.created_at ASC
-        """, (channel_id,)).fetchall()
-    return templates.TemplateResponse("channel_chat.html", {
-        "request": request, "me": me, "channel": channel, "messages": messages
-    })
+# 🔹 Главная (лента)
+@app.get("/", response_class=HTMLResponse)
+def index(request: Request, db: Session = Depends(get_db)):
+    me = cur_user(request, db)
+    posts = db.query(Post).order_by(Post.created_at.desc()).all()
 
-# === Отправка сообщения в канал ===
-@app.post("/channel/{channel_id}/send")
-def send_channel_message(request: Request, channel_id: int, content: str = Form(""), image: UploadFile = File(None)):
-    me = cur_user(request)
+    data = []
+    for p in posts:
+        data.append({
+            "id": p.id,
+            "content": p.content,
+            "image": p.image,
+            "username": p.author.username,
+            "first_name": p.author.first_name,
+            "last_name": p.author.last_name,
+            "avatar": p.author.avatar,
+            "is_verified": p.author.is_verified,
+            "like_count": len(p.likes),
+            "user_id": p.user_id,
+            "comments": [{"username": c.user.username, "content": c.content} for c in p.comments]
+        })
+
+    return templates.TemplateResponse("index.html", {"request": request, "me": me, "posts": data, "APP": APP_NAME})
+
+
+# 🔹 Регистрация
+@app.post("/register")
+def register(username: str = Form(...), password: str = Form(...),
+             first_name: str = Form(None), last_name: str = Form(None),
+             db: Session = Depends(get_db)):
+    if db.query(User).filter(User.username == username).first():
+        return {"error": "Пользователь уже существует"}
+
+    hashed = bcrypt.hash(password)
+    user = User(username=username, password=hashed,
+                first_name=first_name, last_name=last_name)
+    db.add(user)
+    db.commit()
+
+    resp = RedirectResponse("/", status_code=303)
+    resp.set_cookie("whome_user", username, httponly=False)
+    return resp
+
+
+# 🔹 Логин
+@app.post("/login")
+def login(username: str = Form(...), password: str = Form(...),
+          db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == username).first()
+    if not user or not bcrypt.verify(password, user.password):
+        return {"error": "Неверные данные"}
+
+    user.last_visit = datetime.utcnow()
+    db.commit()
+
+    resp = RedirectResponse("/", status_code=303)
+    resp.set_cookie("whome_user", username, httponly=False)
+    return resp
+
+
+# 🔹 Создать пост
+@app.post("/post")
+def create_post(request: Request, content: str = Form(...),
+                image: UploadFile = File(None),
+                db: Session = Depends(get_db)):
+    me = cur_user(request, db)
     if not me:
         return RedirectResponse("/login", status_code=303)
 
     img_path = None
     if image and image.filename:
-        os.makedirs("static/channel_uploads", exist_ok=True)
-        ext = os.path.splitext(image.filename)[1]
-        img_path = f"static/channel_uploads/{int(time.time())}{ext}"
-        with open(img_path, "wb") as f:
-            f.write(image.file.read())
-
-    with db() as c:
-        c.execute("""
-            INSERT INTO channel_messages(channel_id, sender_id, content, image, created_at)
-            VALUES(?,?,?,?,?)
-        """, (channel_id, me["id"], content, img_path, int(time.time())))
-        c.commit()
-
-    return RedirectResponse(f"/channel/{channel_id}", status_code=303)
-
-# ── PAGES ─────────────────────────────────────────────────────────────────────
-@app.get("/", response_class=HTMLResponse)
-def home(request: Request):
-    me = cur_user(request)
-    with db() as c:
-        posts = c.execute("""
-            SELECT posts.*, users.username, users.first_name, users.last_name, users.avatar, users.is_verified
-            FROM posts
-            JOIN users ON posts.user_id = users.id
-            ORDER BY posts.created_at DESC
-        """).fetchall()
-
-        # все комментарии сразу, сгруппуем по post_id
-        comm_rows = c.execute("""
-            SELECT c.*, u.username, u.avatar
-            FROM comments c
-            JOIN users u ON u.id = c.user_id
-            ORDER BY c.created_at ASC, c.id ASC
-        """).fetchall()
-
-    comments_by_post = {}
-    counts = {}
-    for r in comm_rows:
-        pid = r["post_id"]
-        comments_by_post.setdefault(pid, []).append(r)
-        counts[pid] = counts.get(pid, 0) + 1
-
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "me": me,
-            "posts": posts,
-            "comments_by_post": comments_by_post,
-            "comment_counts": counts,
-            "APP": APP_NAME,
-        },
-    )
-
-@app.get("/register", response_class=HTMLResponse)
-def register_page(request: Request):
-    return templates.TemplateResponse("register.html", {"request":request, "APP":APP_NAME})
-
-# ── REGISTER ───────────────────────────────────────────────────────────
-@app.post("/register")
-def register(
-    email: str = Form(...),
-    username: str = Form(...),
-    first_name: str = Form(...),
-    last_name: str = Form(...),
-    password: str = Form(...),
-    avatar: UploadFile = File(None)
-):
-    if not valid_username(username):
-        return RedirectResponse("/register?e=bad_username", status_code=303)
-
-    with db() as c:
-        if c.execute("SELECT 1 FROM users WHERE username=? OR email=?", (username, email)).fetchone():
-            return RedirectResponse("/register?e=exists", status_code=303)
-
-        avatar_path = None
-        if avatar and avatar.filename:
-            os.makedirs("static/avatars", exist_ok=True)
-            clean_username = username.lstrip("@")
-            avatar_path = f"static/avatars/{clean_username}.png"
-            with open(avatar_path, "wb") as f:
-                shutil.copyfileobj(avatar.file, f)
-
-        password_hash = hash_password(password)
-        c.execute(
-            "INSERT INTO users(email,username,first_name,last_name,avatar,password) VALUES(?,?,?,?,?,?)",
-            (email, username, first_name, last_name, avatar_path, password_hash)
-        )
-        c.commit()
-
-    resp = RedirectResponse("/", status_code=303)
-    resp.set_cookie("whome_user", username, httponly=True)
-    return resp
-
-@app.get("/login", response_class=HTMLResponse)
-def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request":request, "APP":APP_NAME})
-
-@app.post("/login")
-def login(username: str = Form(...), password: str = Form(...)):
-    with db() as c:
-        u = c.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
-    if not u or not verify_password(password, u["password"] or ""):
-        return RedirectResponse("/login?e=bad", status_code=303)
-    resp = RedirectResponse("/", status_code=303)
-    resp.set_cookie("whome_user", username, httponly=True)
-    return resp
-
-@app.get("/logout")
-def logout():
-    resp = RedirectResponse("/", status_code=303)
-    resp.delete_cookie("whome_user")
-    return resp
-
-# ── POSTS ─────────────────────────────────────────────────────────────────────
-@app.post("/post")
-def create_post(request: Request, content: str = Form(""), image: UploadFile = File(None)):
-    me = cur_user(request)
-    if not me: return RedirectResponse("/login", status_code=303)
-    img_path = None
-    if image and image.filename:
-        img_path = f"static/posts/{int(time.time())}_{image.filename}"
+        os.makedirs("static/posts", exist_ok=True)
+        img_path = f"static/posts/{me.username}_{image.filename}"
         with open(img_path, "wb") as f:
             shutil.copyfileobj(image.file, f)
-    with db() as c:
-        c.execute("INSERT INTO posts(user_id,content,image,created_at) VALUES(?,?,?,?)",
-                  (me["id"], content, img_path, int(time.time())))
-        c.commit()
+
+    post = Post(user_id=me.id, content=content, image=img_path)
+    db.add(post)
+    db.commit()
     return RedirectResponse("/", status_code=303)
 
-# ── COMMENTS ──────────────────────────────────────────────────────────────────
+
+# 🔹 Комментарий
 @app.post("/post/{post_id}/comment")
-def add_comment(
-    request: Request,
-    post_id: int,
-    content: str = Form(...),
-    user: dict = Depends(get_current_user)
-):
-    if not user:
-        return RedirectResponse("/login", status_code=303)
-    content = (content or "").strip()
-    if not content:
-        return RedirectResponse("/", status_code=303)
-
-    with db() as c:
-        # убеждаемся, что пост есть
-        post = c.execute("SELECT id FROM posts WHERE id=?", (post_id,)).fetchone()
-        if not post:
-            return PlainTextResponse("Post not found", status_code=404)
-        c.execute(
-            "INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)",
-            (post_id, user["id"], content)
-        )
-        c.commit()
-
-    # возвращаемся на главную (или можно на /#post-{id})
-    return RedirectResponse("/", status_code=303)
-
-# ── DELETE POST ───────────────────────────────────────────────────────────────
-@app.post("/post/{post_id}/delete")
-def delete_post(request: Request, post_id: int):
-    me = cur_user(request)
+def add_comment(request: Request, post_id: int, content: str = Form(...),
+                db: Session = Depends(get_db)):
+    me = cur_user(request, db)
     if not me:
         return RedirectResponse("/login", status_code=303)
-    with db() as c:
-        post = c.execute("SELECT * FROM posts WHERE id=?", (post_id,)).fetchone()
-        if not post:
-            return PlainTextResponse("Post not found", status_code=404)
-        if post["user_id"] != me["id"] and not me["is_admin"]:
-            return PlainTextResponse("Permission denied", status_code=403)
-        if post["image"] and os.path.exists(post["image"]):
-            os.remove(post["image"])
-        c.execute("DELETE FROM posts WHERE id=?", (post_id,))
-        c.commit()
+
+    comment = Comment(post_id=post_id, user_id=me.id, content=content)
+    db.add(comment)
+    db.commit()
     return RedirectResponse("/", status_code=303)
+
+
+# 🔹 Лайк
+@app.post("/like/{post_id}")
+def toggle_like(request: Request, post_id: int, db: Session = Depends(get_db)):
+    me = cur_user(request, db)
+    if not me:
+        return {"error": "auth required"}
+
+    like = db.query(Like).filter(Like.post_id == post_id, Like.user_id == me.id).first()
+    if like:
+        db.delete(like)
+        db.commit()
+        return {"status": "unliked"}
+    else:
+        new_like = Like(post_id=post_id, user_id=me.id)
+        db.add(new_like)
+        db.commit()
+        return {"status": "liked"}
+
+
+# 🔹 Удаление поста
+@app.post("/post/{post_id}/delete")
+def delete_post(request: Request, post_id: int, db: Session = Depends(get_db)):
+    me = cur_user(request, db)
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not me or (post.user_id != me.id and not me.is_admin):
+        return RedirectResponse("/", status_code=303)
+
+    db.delete(post)
+    db.commit()
+    return RedirectResponse("/", status_code=303)
+
 
 # ── ПРОФИЛИ ──────────────────────────────────────────────────────────────────
 @app.get("/profile/{username}", response_class=HTMLResponse)
